@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحدي كرة القدم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+        body {
+            font-family: 'Cairo', sans-serif;
+            direction: rtl;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+        .screen {
+            display: none;
+        }
+        .screen.active {
+            display: flex;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="container mx-auto p-4 max-w-lg">
+        <!-- شاشة البداية -->
+        <div id="start-screen" class="screen active flex-col items-center justify-center text-center p-8 bg-[#161b22] rounded-3xl shadow-lg">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-[#2ee691]">تحدي كرة القدم</h1>
+            <p class="text-lg mb-8">
+                هل تعتقد أنك خبير في كرة القدم؟ اختبر معلوماتك في وضع كلاسيكي أو مصنف.
+            </p>
+            <p class="text-sm text-gray-400 mb-8">
+                تذكر: ارتكاب خطأين (سواء بسبب إجابة خاطئة أو انتهاء الوقت) يعني أنك ستخسر اللعبة.
+            </p>
+            <div class="flex flex-col space-y-4 w-full max-w-xs">
+                <button onclick="selectMode('classic')" class="px-8 py-4 text-xl font-bold rounded-full bg-blue-600 text-white transition-all duration-300 hover:scale-105 hover:bg-blue-700">
+                    كلاسيكي
+                </button>
+                <button onclick="selectMode('ranked')" class="px-8 py-4 text-xl font-bold rounded-full bg-yellow-600 text-white transition-all duration-300 hover:scale-105 hover:bg-yellow-700">
+                    مصنف
+                </button>
+            </div>
+        </div>
+
+        <!-- شاشة الأسئلة -->
+        <div id="quiz-screen" class="screen flex-col items-center justify-center p-8 bg-[#161b22] rounded-3xl shadow-lg">
+            <div class="w-full mb-6 text-center flex justify-between items-center">
+                <p id="level-and-score" class="text-lg font-bold">المرحلة: | النقاط: 0</p>
+                <div class="relative w-24 h-12 bg-gray-700 rounded-full flex items-center justify-center text-white text-2xl font-extrabold">
+                    <span id="timer-text">10</span>
+                </div>
+            </div>
+            <div class="w-full mb-6">
+                <div class="h-2 bg-gray-700 rounded-full">
+                    <div id="progress-bar" class="h-2 bg-[#2ee691] rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+                <p id="question-count" class="mt-2 text-sm text-center">سؤال 1 من 7</p>
+            </div>
+            
+            <h2 id="question-text" class="text-2xl md:text-3xl font-bold mb-6 text-center leading-relaxed"></h2>
+
+            <div id="options-container" class="w-full space-y-4">
+                <!-- ستتم إضافة الأزرار هنا بواسطة JavaScript -->
+            </div>
+
+            <button id="next-button" onclick="nextQuestion()" class="mt-8 px-8 py-4 text-xl font-bold rounded-full bg-blue-600 text-white transition-all duration-300 hover:scale-105 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed hidden">
+                السؤال التالي
+            </button>
+        </div>
+
+        <!-- شاشة النتائج -->
+        <div id="result-screen" class="screen flex-col items-center justify-center text-center p-8 bg-[#161b22] rounded-3xl shadow-lg">
+            <h2 id="final-title" class="text-4xl md:text-5xl font-extrabold mb-4 text-red-500">انتهت اللعبة!</h2>
+            <p id="final-score" class="text-2xl md:text-3xl mb-4">لقد حصلت على 0 نقاط</p>
+            <p id="score-message" class="text-xl mb-8"></p>
+            
+            <button onclick="restartGame()" class="px-8 py-4 text-xl font-bold rounded-full bg-[#2ee691] text-[#0d1117] transition-all duration-300 hover:scale-105 hover:shadow-xl mt-8">
+                إعادة المحاولة
+            </button>
+        </div>
+    </div>
+
+    <!-- صندوق الرسائل المخصص (بديل لـ alert) -->
+    <div id="message-box" class="message-box screen" role="alert">
+        <p id="message-text" class="text-lg font-bold mb-4"></p>
+    </div>
+
+    <script>
+        // Data structure for questions by level
+        const allQuestions = {
+            "سهل": [
+                { question: "من هو المنتخب الفائز بكأس العالم لكرة القدم 2022؟", options: ["ألمانيا", "البرازيل", "فرنسا", "الأرجنتين"], correctAnswer: "الأرجنتين" },
+                { question: "أي ناد يحمل الرقم القياسي في عدد ألقاب دوري أبطال أوروبا؟", options: ["برشلونة", "ريال مدريد", "بايرن ميونخ", "ليفربول"], correctAnswer: "ريال مدريد" },
+                { question: "من هو اللاعب الذي يُعرف باسم 'الملك المصري'؟", options: ["محمد صلاح", "رياض محرز", "ساديو ماني", "يوسف المساكني"], correctAnswer: "محمد صلاح" },
+                { question: "كم عدد اللاعبين في فريق كرة القدم؟", options: ["9", "10", "11", "12"], correctAnswer: "11" },
+                { question: "ما هي المدينة التي يستضيفها ملعب 'كامب نو'؟", options: ["مدريد", "مانشستر", "برشلونة", "ميلان"], correctAnswer: "برشلونة" },
+                { question: "من هو الفائز ببطولة كأس العالم 2018؟", options: ["ألمانيا", "فرنسا", "كرواتيا", "البرازيل"], correctAnswer: "فرنسا" },
+                { question: "أي دولة فازت بأول كأس عالم في التاريخ؟", options: ["البرازيل", "أوروغواي", "إيطاليا", "ألمانيا"], correctAnswer: "أوروغواي" },
+                { question: "من هو أول لاعب عربي يفوز بلقب هداف الدوري الإنجليزي الممتاز؟", options: ["محمد صلاح", "رياض محرز", "ساديو ماني", "ياسين براهيمي"], correctAnswer: "محمد صلاح" },
+                { question: "في أي دولة أقيمت بطولة كأس العالم 2014؟", options: ["ألمانيا", "البرازيل", "جنوب أفريقيا", "روسيا"], correctAnswer: "البرازيل" },
+                { question: "من هو هداف الدوري الإنجليزي الممتاز لموسم 2022-2023؟", options: ["هاري كين", "إرلينج هالاند", "محمد صلاح", "ماركوس راشفورد"], correctAnswer: "إرلينج هالاند" },
+                { question: "ما هو لقب منتخب إيطاليا لكرة القدم؟", options: ["الديوك", "الأزوري", "الماتادور", "السامبا"], correctAnswer: "الأزوري" },
+                { question: "أي نادٍ يعرف بـ 'الشياطين الحمر'؟", options: ["مانشستر يونايتد", "ريال مدريد", "برشلونة", "بايرن ميونخ"], correctAnswer: "مانشستر يونايتد" },
+                { question: "كم عدد أهداف كريستيانو رونالدو مع ريال مدريد؟", options: ["350", "400", "450", "500"], correctAnswer: "450" },
+                { question: "من هو اللاعب الذي سجل هدفًا بيده في مباراة ضد منتخب إنجلترا؟", options: ["دييغو مارادونا", "ليونيل ميسي", "كريستيانو رونالدو", "رونالدينيو"], correctAnswer: "دييغو مارادونا" },
+                { question: "ما هو اسم ملعب نادي أرسنال الإنجليزي؟", options: ["ويمبلي", "الإمارات", "أولد ترافورد", "أنفيلد"], correctAnswer: "الإمارات" },
+                { question: "من هو أول لاعب يفوز بالكرة الذهبية؟", options: ["دييغو مارادونا", "بيليه", "ستانلي ماثيوز", "فرانس بيكنباور"], correctAnswer: "ستانلي ماثيوز" },
+                { question: "في أي دولة أقيمت أول بطولة كأس عالم؟", options: ["البرازيل", "ألمانيا", "إيطاليا", "أوروغواي"], correctAnswer: "أوروغواي" },
+                { question: "ما هو أكبر فوز في تاريخ كأس العالم؟", options: ["9-0", "10-1", "13-0", "15-0"], correctAnswer: "10-1" },
+                { question: "من هو هداف منتخب إسبانيا التاريخي؟", options: ["ديفيد فيا", "راؤول جونزاليس", "فيرناندو توريس", "سيرجيو راموس"], correctAnswer: "ديفيد فيا" },
+                { question: "من هو أول فريق إفريقي يشارك في كأس العالم؟", options: ["مصر", "المغرب", "الجزائر", "تونس"], correctAnswer: "مصر" }
+            ],
+            "متوسط": [
+                { question: "كم عدد الكرات الذهبية التي فاز بها ليونيل ميسي؟", options: ["5", "6", "7", "8"], correctAnswer: "8" },
+                { question: "ما هو لقب نادي يوفنتوس الإيطالي؟", options: ["الروسونيري", "البيانكونيري", "الإنتر", "الرومانيري"], correctAnswer: "البيانكونيري" },
+                { question: "من هو اللاعب الذي سجل أسرع هدف في تاريخ كأس العالم؟", options: ["توماس مولر", "ميروسلاف كلوزه", "هاكان شوكور", "رونالدو"], correctAnswer: "هاكان شوكور" },
+                { question: "كم عدد ألقاب الدوري الإنجليزي التي فاز بها مانشستر سيتي في آخر 5 سنوات؟", options: ["3", "4", "5", "6"], correctAnswer: "4" },
+                { question: "من هو المدرب الحالي لمنتخب المغرب؟", options: ["خليلوزيتش", "هيرفي رينارد", "وليد الركراكي", "نبيل معلول"], correctAnswer: "وليد الركراكي" },
+                { question: "في أي عام فاز نادي ليفربول بلقب الدوري الإنجليزي الممتاز لأول مرة؟", options: ["2020", "2019", "2018", "2021"], correctAnswer: "2020" },
+                { question: "من هو الهداف التاريخي لكأس العالم؟", options: ["بيليه", "جيرد مولر", "رونالدو البرازيلي", "ميروسلاف كلوزه"], correctAnswer: "ميروسلاف كلوزه" },
+                { question: "من هو اللاعب الذي فاز بأربع ألقاب دوري أبطال أوروبا مع ناديين مختلفين؟", options: ["كريستيانو رونالدو", "ليونيل ميسي", "كلارنس سيدورف", "ريان جيجز"], correctAnswer: "كلارنس سيدورف" },
+                { question: "ما هي الدولة التي فازت بلقب كأس العالم 1998؟", options: ["البرازيل", "إيطاليا", "فرنسا", "ألمانيا"], correctAnswer: "فرنسا" },
+                { question: "من هو أصغر لاعب يفوز بجائزة الكرة الذهبية؟", options: ["ليونيل ميسي", "كريستيانو رونالدو", "مايكل أوين", "رونالدو البرازيلي"], correctAnswer: "مايكل أوين" },
+                { question: "كم عدد أهداف اللاعب بيليه في مسيرته؟", options: ["أكثر من 1000", "أكثر من 700", "أكثر من 800", "أكثر من 900"], correctAnswer: "أكثر من 1000" },
+                { question: "من هو الهداف التاريخي لمنتخب البرتغال؟", options: ["يوزيبيو", "باوليتا", "لويس فيجو", "كريستيانو رونالدو"], correctAnswer: "كريستيانو رونالدو" },
+                { question: "من هو اللاعب الذي سجل هدفًا بيده في نهائي كأس العالم 1986؟", options: ["غاري لينيكر", "مارادونا", "رونالدو البرازيلي", "تيري هنري"], correctAnswer: "مارادونا" },
+                { question: "ما هو لقب نادي بايرن ميونخ الألماني؟", options: ["البافاريون", "المدفعجية", "البيانكونيري", "الشياطين الحمر"], correctAnswer: "البافاريون" },
+                { question: "من هو اللاعب الذي فاز بلقب هداف الدوري الإسباني أكثر من مرة؟", options: ["لويس سواريز", "نيمار", "كريستيانو رونالدو", "جميع ما سبق"], correctAnswer: "جميع ما سبق" },
+                { question: "في أي عام فازت ألمانيا بلقب كأس العالم للمرة الأخيرة؟", options: ["2010", "2014", "2018", "2022"], correctAnswer: "2014" },
+                { question: "من هو الهداف التاريخي لمنتخب البرازيل؟", options: ["بيليه", "رونالدو نازاريو", "نيمار", "روماريو"], correctAnswer: "نيمار" },
+                { question: "ما هو اسم ملعب نادي أياكس أمستردام؟", options: ["يوهان كرويف أرينا", "أنفيلد", "الأولمبيكو", "سان سيرو"], correctAnswer: "يوهان كرويف أرينا" },
+                { question: "من هو أول فريق يفوز بلقب دوري أبطال أوروبا مرتين متتاليتين؟", options: ["ميلان", "ريال مدريد", "ليفربول", "أياكس"], correctAnswer: "ريال مدريد" },
+                { question: "كم عدد الألقاب التي فاز بها ليونيل ميسي مع نادي برشلونة؟", options: ["30", "35", "40", "28"], correctAnswer: "35" }
+            ],
+            "صعب": [
+                { question: "من هو اللاعب العربي الوحيد الذي فاز بلقب هداف الدوري الإنجليزي الممتاز قبل محمد صلاح؟", options: ["رياض محرز", "نواف العابد", "ياسين براهيمي", "لا يوجد"], correctAnswer: "لا يوجد" },
+                { question: "كم مرة فازت البرتغال ببطولة كأس الأمم الأوروبية؟", options: ["مرة واحدة", "مرتين", "ثلاث مرات", "ولا مرة"], correctAnswer: "مرة واحدة" },
+                { question: "من هو اللاعب الوحيد الذي فاز بجميع الألقاب المحلية والقارية والدولية مع نادٍ واحد ومنتخب بلاده؟", options: ["ليونيل ميسي", "كريستيانو رونالدو", "تشافي", "أندريس إنييستا"], correctAnswer: "أندريس إنييستا" },
+                { question: "في أي عام تم إلغاء كأس العالم بسبب الحرب العالمية الثانية؟", options: ["1942", "1946", "1942 و 1946", "1938"], correctAnswer: "1942 و 1946" },
+                { question: "من هو اللاعب الذي سجل الهدف الذهبي في نهائي كأس العالم 2014؟", options: ["ماريو جوتزه", "مسعود أوزيل", "أندريه شورله", "توماس مولر"], correctAnswer: "ماريو جوتزه" },
+                { question: "ما هو اسم ملعب نادي أياكس أمستردام؟", options: ["يوهان كرويف أرينا", "أنفيلد", "الأولمبيكو", "سان سيرو"], correctAnswer: "يوهان كرويف أرينا" },
+                { question: "من هو أول لاعب يسجل في 5 نسخ مختلفة من بطولة كأس العالم؟", options: ["ميروسلاف كلوزه", "بيليه", "كريستيانو رونالدو", "ليونيل ميسي"], correctAnswer: "كريستيانو رونالدو" },
+                { question: "من هو الهداف التاريخي لمنتخب فرنسا؟", options: ["تييري هنري", "أوليفييه جيرو", "كيليان مبابي", "زين الدين زيدان"], correctAnswer: "أوليفييه جيرو" },
+                { question: "كم مرة فازت الأرجنتين بكأس العالم؟", options: ["مرتين", "ثلاث مرات", "أربع مرات", "مرة واحدة"], correctAnswer: "ثلاث مرات" },
+                { question: "من هو اللاعب الذي فاز بجائزة أفضل حارس مرمى في كأس العالم 2022؟", options: ["ياشين", "إميليانو مارتينيز", "ثيباوت كورتوا", "ديفيد دي خيا"], correctAnswer: "إميليانو مارتينيز" },
+                { question: "ما هي المدينة التي استضافت نهائي دوري أبطال أوروبا عام 2023؟", options: ["إسطنبول", "مدريد", "باريس", "لندن"], correctAnswer: "إسطنبول" },
+                { question: "من هو هداف بطولة كأس العالم 2006؟", options: ["ميروسلاف كلوزه", "لوكا توني", "فرناندو توريس", "كريم بنزيما"], correctAnswer: "ميروسلاف كلوزه" },
+                { question: "ما هو النادي الذي فاز بأكثر عدد من ألقاب كأس الاتحاد الإنجليزي؟", options: ["مانشستر يونايتد", "أرسنال", "تشيلسي", "ليفربول"], correctAnswer: "أرسنال" },
+                { question: "من هو اللاعب الذي سجل هاتريك في نهائي كأس العالم؟", options: ["بيليه", "جيف هيرست", "زين الدين زيدان", "كريستيانو رونالدو"], correctAnswer: "جيف هيرست" },
+                { question: "من هو أول لاعب يفوز بجائزة أفضل لاعب في العالم من الفيفا؟", options: ["لوثر ماتيوس", "روبرتو باجيو", "ماركو فان باستن", "زين الدين زيدان"], correctAnswer: "لوثر ماتيوس" },
+                { question: "في أي عام تم تأسيس نادي ريال مدريد؟", options: ["1898", "1902", "1905", "1910"], correctAnswer: "1902" },
+                { question: "من هو اللاعب الذي سجل أول هدف في تاريخ كأس العالم؟", options: ["لوسيان لوران", "غييرمو ستابيلي", "ألدو أوليفيري", "لا يوجد"], correctAnswer: "لوسيان لوران" },
+                { question: "ما هو أكبر فارق في الأهداف في مباراة واحدة في تاريخ دوري أبطال أوروبا؟", options: ["10", "11", "12", "13"], correctAnswer: "11" },
+                { question: "من هو اللاعب الذي يُعرف بـ 'المايسترو'؟", options: ["أندريا بيرلو", "تشافي", "أندريس إنييستا", "لوكا مودريتش"], correctAnswer: "أندريا بيرلو" },
+                { question: "كم عدد الألقاب الأوروبية التي فاز بها نادي ليفربول؟", options: ["7", "8", "9", "10"], correctAnswer: "10" }
+            ],
+            "محترف": [
+                { question: "من هو المدرب الذي قاد منتخب اليونان للفوز ببطولة كأس الأمم الأوروبية عام 2004؟", options: ["أوتو ريهاجل", "لويس فيليبي سكولاري", "جورجيوس دونيس", "فيرناندو سانتوس"], correctAnswer: "أوتو ريهاجل" },
+                { question: "كم مرة فاز نادي نوتنجهام فورست الإنجليزي بلقب دوري أبطال أوروبا؟", options: ["مرة واحدة", "مرتين", "ثلاث مرات", "ولا مرة"], correctAnswer: "مرتين" },
+                { question: "من هو اللاعب الذي سجل هدفًا بيده في نهائي كأس العالم؟", options: ["دييغو مارادونا", "تيري هنري", "لويس سواريز", "لا يوجد"], correctAnswer: "لا يوجد" },
+                { question: "في أي عام أقيمت أول بطولة لكأس العالم للأندية بشكلها الحالي؟", options: ["2000", "2005", "1998", "2001"], correctAnswer: "2000" },
+                { question: "من هو الهداف التاريخي لمنتخب هولندا؟", options: ["روبن فان بيرسي", "ممفيس ديباي", "دينيس بيركامب", "يوهان كرويف"], correctAnswer: "روبن فان بيرسي" },
+                { question: "ما هو اسم أول لاعب عربي يسجل في نهائي دوري أبطال أوروبا؟", options: ["محمد صلاح", "رياض محرز", "حكيم زياش", "ساديو ماني"], correctAnswer: "رياض محرز" },
+                { question: "في أي سنة فاز نادي برشلونة بلقب دوري أبطال أوروبا لأول مرة؟", options: ["1992", "2006", "1999", "2009"], correctAnswer: "1992" },
+                { question: "من هو اللاعب الذي سجل هدفًا من ركلة جزاء في نهائي كأس العالم 2022؟", options: ["كيليان مبابي", "ليونيل ميسي", "كلاهما", "لا أحد منهما"], correctAnswer: "كلاهما" },
+                { question: "كم عدد الأهداف التي سجلها كريستيانو رونالدو في دوري أبطال أوروبا؟", options: ["140", "150", "160", "170"], correctAnswer: "140" },
+                { question: "من هو اللاعب الذي فاز بجائزة أفضل لاعب شاب في كأس العالم 2022؟", options: ["كيليان مبابي", "جود بيلينجهام", "إنزو فيرنانديز", "جافي"], correctAnswer: "إنزو فيرنانديز" },
+                { question: "ما هي الدولة التي فازت بأكثر عدد من ألقاب كأس الأمم الأوروبية؟", options: ["ألمانيا", "إسبانيا", "فرنسا", "إيطاليا"], correctAnswer: "إسبانيا" },
+                { question: "من هو أصغر لاعب يفوز بلقب كأس العالم؟", options: ["بيليه", "ليونيل ميسي", "دييغو مارادونا", "كيليان مبابي"], correctAnswer: "بيليه" },
+                { question: "ما هو لقب نادي تشيلسي الإنجليزي؟", options: ["البلوز", "المدفعجية", "الشياطين الحمر", "السيتيزينز"], correctAnswer: "البلوز" },
+                { question: "من هو اللاعب الذي يُعرف بـ 'الأمير' في الكرة الإيطالية؟", options: ["أليساندرو ديل بييرو", "روبرتو باجيو", "فرانشيسكو توتي", "أليساندرو نيستا"], correctAnswer: "روبرتو باجيو" },
+                { question: "كم عدد أهداف ليو ميسي في الدوري الإسباني؟", options: ["474", "450", "480", "460"], correctAnswer: "474" },
+                { question: "من هو اللاعب الذي فاز بلقب هداف الدوري الإنجليزي 3 مرات متتالية؟", options: ["هاري كين", "تيري هنري", "آلان شيرر", "محمد صلاح"], correctAnswer: "تيري هنري" },
+                { question: "ما هو اسم ملعب نادي بايرن ميونخ؟", options: ["أليانز أرينا", "سيجنال إيدونا بارك", "فيلتينس أرينا", "ريد بول أرينا"], correctAnswer: "أليانز أرينا" },
+                { question: "من هو اللاعب الذي فاز بجائزة بوشكاش لأجمل هدف في عام 2011؟", options: ["نيمار", "ليونيل ميسي", "كريستيانو رونالدو", "واين روني"], correctAnswer: "نيمار" },
+                { question: "من هو أول فريق إفريقي يصل إلى نصف نهائي كأس العالم؟", options: ["الكاميرون", "السنغال", "غانا", "المغرب"], correctAnswer: "المغرب" },
+                { question: "من هو اللاعب الذي فاز بجائزة أفضل لاعب في كأس العالم 2014؟", options: ["ليونيل ميسي", "توماس مولر", "أريين روبن", "نيمار"], correctAnswer: "ليونيل ميسي" }
+            ],
+            "أسطوري": [
+                { question: "كم عدد أهداف ليونيل ميسي في جميع مبارياته مع الأندية والمنتخب حتى نهاية موسم 2023؟", options: ["أكثر من 800", "أكثر من 700", "أكثر من 600", "أكثر من 900"], correctAnswer: "أكثر من 800" },
+                { question: "من هو اللاعب الوحيد الذي فاز بلقب كأس العالم 5 مرات؟", options: ["بيليه", "مارادونا", "ديدي", "لا يوجد"], correctAnswer: "لا يوجد" },
+                { question: "من هو حارس المرمى الذي فاز بجائزة الكرة الذهبية؟", options: ["يان أوبلاك", "ليف ياشين", "أوليفر كان", "جيانلويجي بوفون"], correctAnswer: "ليف ياشين" },
+                { question: "من هو اللاعب الذي سجل 5 أهداف في مباراة واحدة في دوري أبطال أوروبا مرتين؟", options: ["كريستيانو رونالدو", "ليونيل ميسي", "روبرت ليفاندوفسكي", "ألف هالاند"], correctAnswer: "ألف هالاند" },
+                { question: "من هو أول فريق إنجليزي فاز بلقب الدوري الإنجليزي الممتاز (بصيغته الجديدة)؟", options: ["مانشستر يونايتد", "أرسنال", "بلاكبيرن روفرز", "تشيلسي"], correctAnswer: "مانشستر يونايتد" },
+                { question: "ما هو الاسم الكامل لملعب 'الكامب نو'؟", options: ["نوف كامب", "سبوتيفي كامب نو", "كامب نو", "إستاديو نو"], correctAnswer: "سبوتيفي كامب نو" },
+                { question: "من هو اللاعب الإيطالي الذي فاز بلقب كأس العالم عام 2006 وحصل على جائزة الكرة الذهبية في نفس العام؟", options: ["فرانشيسكو توتي", "فابيو كانافارو", "أليساندرو ديل بييرو", "أندريا بيرلو"], correctAnswer: "فابيو كانافارو" },
+                { question: "من هو اللاعب الذي سجل في كل دقيقة من دقائق المباراة؟", options: ["كريستيانو رونالدو", "ليونيل ميسي", "زلاتان إبراهيموفيتش", "لويس سواريز"], correctAnswer: "كريستيانو رونالدو" },
+                { question: "من هو اللاعب الذي سجل أكبر عدد من الأهداف في موسم واحد في الدوري الإنجليزي الممتاز؟", options: ["محمد صلاح", "آلان شيرر", "آندي كول", "إرلينج هالاند"], correctAnswer: "إرلينج هالاند" },
+                { question: "من هو اللاعب الذي فاز بجميع الألقاب مع ناديين مختلفين في قارتين مختلفتين؟", options: ["كاكا", "رونالدينيو", "رونالدو البرازيلي", "ديدييه دروجبا"], correctAnswer: "ديدييه دروجبا" },
+                { question: "ما هو النادي الذي فاز بلقب دوري أبطال أوروبا مرتين متتاليتين مع مدربين مختلفين؟", options: ["ريال مدريد", "ميلان", "بايرن ميونخ", "ليفربول"], correctAnswer: "ميلان" },
+                { question: "من هو اللاعب الذي يُعرف بـ 'الماجيكو' في الكرة الإسبانية؟", options: ["أندريس إنييستا", "تشافي", "لوكاس فاسكيز", "دافيد سيلفا"], correctAnswer: "دافيد سيلفا" },
+                { question: "كم عدد الأهداف التي سجلها بيليه في كأس العالم؟", options: ["10", "12", "13", "14"], correctAnswer: "12" },
+                { question: "من هو اللاعب الذي سجل هدفاً من ركلة جزاء في نهائي كأس العالم 2006؟", options: ["ماركو ماتيراتزي", "زين الدين زيدان", "كلاهما", "لا أحد منهما"], correctAnswer: "كلاهما" },
+                { question: "ما هو اسم أول ملعب استضاف نهائي كأس العالم؟", options: ["ويمبلي", "ماراكانا", "إستاديو سينتيناريو", "أزتيكا"], correctAnswer: "إستاديو سينتيناريو" },
+                { question: "من هو الهداف التاريخي لمنتخب ألمانيا؟", options: ["جيرد مولر", "يورغن كلينسمان", "ميروسلاف كلوزه", "توماس مولر"], correctAnswer: "ميروسلاف كلوزه" },
+                { question: "كم مرة فازت إيطاليا بكأس العالم؟", options: ["مرتين", "ثلاث مرات", "أربع مرات", "خمس مرات"], correctAnswer: "أربع مرات" },
+                { question: "من هو اللاعب الذي فاز بالكرة الذهبية لأكثر عدد من المرات؟", options: ["كريستيانو رونالدو", "ليونيل ميسي", "يوهان كرويف", "ميشيل بلاتيني"], correctAnswer: "ليونيل ميسي" },
+                { question: "من هو اللاعب الذي سجل هدفًا من ركلة حرة في جميع بطولات دوري أبطال أوروبا؟", options: ["كريستيانو رونالدو", "ليونيل ميسي", "نيمار", "زين الدين زيدان"], correctAnswer: "ليونيل ميسي" },
+                { question: "ما هو النادي الذي فاز بجميع بطولات كأس الاتحاد الأوروبي وكأس الكؤوس الأوروبية ودوري أبطال أوروبا؟", options: ["برشلونة", "ريال مدريد", "يوفنتوس", "أياكس"], correctAnswer: "يوفنتوس" }
+            ]
+        };
+
+        const levels = Object.keys(allQuestions);
+        const QUESTIONS_PER_LEVEL = 7;
+
+        // العناصر
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        const levelAndScore = document.getElementById('level-and-score');
+        const progressBar = document.getElementById('progress-bar');
+        const questionCountText = document.getElementById('question-count');
+        const timerText = document.getElementById('timer-text');
+        const finalTitleText = document.getElementById('final-title');
+        const finalScoreText = document.getElementById('final-score');
+        const scoreMessageText = document.getElementById('score-message');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+
+        let currentLevelIndex = 0;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let wrongAnswers = 0;
+        let timer;
+        let answerSelected = false;
+        let currentQuestions = [];
+        let gameMode = 'classic';
+        let levelWrongAnswers = 0; // عداد الأخطاء لكل مرحلة
+
+        // وظيفة لإظهار صندوق الرسائل
+        function showMessage(text) {
+            messageText.textContent = text;
+            messageBox.classList.add('active');
+            setTimeout(() => {
+                hideMessage();
+                showQuestion();
+            }, 2000);
+        }
+
+        // وظيفة لإخفاء صندوق الرسائل
+        function hideMessage() {
+            messageBox.classList.remove('active');
+        }
+
+        // وظيفة لاختيار وضع اللعب
+        function selectMode(mode) {
+            gameMode = mode;
+            startScreen.classList.remove('active');
+            quizScreen.classList.add('active');
+            currentLevelIndex = 0;
+            currentQuestionIndex = 0;
+            score = 0;
+            wrongAnswers = 0;
+            levelWrongAnswers = 0;
+
+            if (gameMode === 'classic') {
+                selectRandomQuestionsForLevel();
+            } else if (gameMode === 'ranked') {
+                const allQs = Object.values(allQuestions).flat();
+                currentQuestions = allQs.sort(() => Math.random() - 0.5);
+            }
+
+            showQuestion();
+        }
+
+        // وظيفة لاختيار 7 أسئلة عشوائية لكل مرحلة في الوضع الكلاسيكي
+        function selectRandomQuestionsForLevel() {
+            const levelQuestions = allQuestions[levels[currentLevelIndex]];
+            currentQuestions = [];
+            const tempQuestions = [...levelQuestions]; // إنشاء نسخة من المصفوفة
+            for (let i = 0; i < QUESTIONS_PER_LEVEL; i++) {
+                const randomIndex = Math.floor(Math.random() * tempQuestions.length);
+                currentQuestions.push(tempQuestions[randomIndex]);
+                tempQuestions.splice(randomIndex, 1); // إزالة السؤال المختار لتجنب التكرار
+            }
+        }
+        
+        // وظيفة بدء المؤقت
+        function startTimer() {
+            let timeLeft = 10;
+            timerText.textContent = timeLeft;
+            timer = setInterval(() => {
+                timeLeft--;
+                timerText.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    checkAnswer(null, 'time-out');
+                }
+            }, 1000);
+        }
+
+        // وظيفة إظهار السؤال الحالي
+        function showQuestion() {
+            clearInterval(timer);
+            const currentQuestion = currentQuestions[currentQuestionIndex];
+            
+            // تحديث الشريط العلوي بناءً على وضع اللعب
+            if (gameMode === 'classic') {
+                levelAndScore.textContent = `المرحلة: ${levels[currentLevelIndex]} | النقاط: ${score} | أخطاء المرحلة: ${levelWrongAnswers}`;
+                questionCountText.textContent = `سؤال ${currentQuestionIndex + 1} من ${QUESTIONS_PER_LEVEL}`;
+                progressBar.style.width = `${((currentQuestionIndex + 1) / QUESTIONS_PER_LEVEL) * 100}%`;
+            } else { // ranked
+                levelAndScore.textContent = `المرحلة: مصنف | النقاط: ${score} | أخطاء: ${wrongAnswers}`;
+                questionCountText.textContent = `سؤال ${currentQuestionIndex + 1} من ${currentQuestions.length}`;
+                progressBar.style.width = `${((currentQuestionIndex + 1) / currentQuestions.length) * 100}%`;
+            }
+
+            // إظهار السؤال والخيارات
+            questionText.textContent = currentQuestion.question;
+            optionsContainer.innerHTML = '';
+            answerSelected = false;
+            nextButton.classList.add('hidden');
+
+            currentQuestion.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('w-full', 'p-4', 'text-xl', 'font-semibold', 'rounded-xl', 'bg-gray-700', 'hover:bg-gray-600', 'transition-colors', 'duration-200');
+                button.onclick = () => checkAnswer(button, option);
+                optionsContainer.appendChild(button);
+            });
+            startTimer();
+        }
+
+        // وظيفة التحقق من الإجابة
+        function checkAnswer(selectedButton, selectedOption) {
+            if (answerSelected) return;
+            answerSelected = true;
+            clearInterval(timer);
+
+            const currentQuestion = currentQuestions[currentQuestionIndex];
+            const isCorrect = selectedOption === currentQuestion.correctAnswer;
+
+            // تحديث الألوان
+            if (isCorrect) {
+                if (selectedButton) {
+                    selectedButton.classList.remove('bg-gray-700');
+                    selectedButton.classList.add('bg-green-600');
+                }
+                score++;
+            } else {
+                if (selectedButton) {
+                    selectedButton.classList.remove('bg-gray-700');
+                    selectedButton.classList.add('bg-red-600');
+                }
+                wrongAnswers++;
+                if (gameMode === 'classic') {
+                    levelWrongAnswers++;
+                }
+
+                // إظهار الإجابة الصحيحة
+                const correctButton = Array.from(optionsContainer.children).find(btn => btn.textContent === currentQuestion.correctAnswer);
+                if (correctButton) {
+                    correctButton.classList.remove('bg-gray-700');
+                    correctButton.classList.add('bg-green-600');
+                }
+
+                if (gameMode === 'classic' && levelWrongAnswers >= 2) {
+                    endGame("لقد ارتكبت خطأين في هذه المرحلة! انتهت اللعبة.");
+                    return;
+                } else if (gameMode === 'ranked' && wrongAnswers >= 2) {
+                    endGame("لقد ارتكبت خطأين! انتهت اللعبة.");
+                    return;
+                }
+            }
+
+            // إخفاء الأزرار الأخرى
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.classList.remove('hover:bg-gray-600');
+                btn.disabled = true;
+            });
+            
+            // تحديث النقاط في الشريط العلوي
+            if (gameMode === 'classic') {
+                levelAndScore.textContent = `المرحلة: ${levels[currentLevelIndex]} | النقاط: ${score} | أخطاء المرحلة: ${levelWrongAnswers}`;
+            } else {
+                levelAndScore.textContent = `المرحلة: مصنف | النقاط: ${score} | أخطاء: ${wrongAnswers}`;
+            }
+            
+            nextButton.classList.remove('hidden');
+        }
+
+        // وظيفة الانتقال إلى السؤال التالي
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (gameMode === 'classic') {
+                if (currentQuestionIndex < currentQuestions.length) {
+                    showQuestion();
+                } else {
+                    if (currentLevelIndex === levels.length - 1) {
+                        endGame("أنس أسطورة هذه اللعبة!");
+                    } else {
+                        currentLevelIndex++;
+                        currentQuestionIndex = 0;
+                        levelWrongAnswers = 0; // إعادة تعيين عداد أخطاء المرحلة
+                        selectRandomQuestionsForLevel();
+                        showMessage(`لقد أكملت مرحلة ${levels[currentLevelIndex - 1]} بنجاح! انتقل إلى المرحلة التالية: ${levels[currentLevelIndex]}`);
+                    }
+                }
+            } else { // ranked
+                if (currentQuestionIndex < currentQuestions.length) {
+                    showQuestion();
+                } else {
+                    endGame("تهانينا! لقد أكملت جميع الأسئلة المصنفة بنجاح!");
+                }
+            }
+        }
+        
+        // وظيفة عرض النتائج النهائية أو نهاية اللعبة
+        function endGame(message) {
+            quizScreen.classList.remove('active');
+            resultScreen.classList.add('active');
+            
+            if (message.includes("تهانينا") || message.includes("أنس أسطورة")) {
+                finalTitleText.textContent = "تهانينا!";
+                finalTitleText.classList.remove('text-red-500');
+                finalTitleText.classList.add('text-[#2ee691]');
+            } else if (message.includes("خطأين") || message.includes("انتهى الوقت")) {
+                finalTitleText.textContent = "انتهت اللعبة!";
+                finalTitleText.classList.remove('text-[#2ee691]');
+                finalTitleText.classList.add('text-red-500');
+            }
+            
+            finalScoreText.textContent = `لقد حصلت على ${score} نقاط`;
+            scoreMessageText.textContent = message;
+        }
+
+        // وظيفة إعادة تشغيل اللعبة
+        function restartGame() {
+            resultScreen.classList.remove('active');
+            startScreen.classList.add('active');
+        }
+    </script>
+</body>
+  </html>
